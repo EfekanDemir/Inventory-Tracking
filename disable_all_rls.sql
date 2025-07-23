@@ -1,0 +1,28 @@
+-- Tüm RLS Politikalarını Devre Dışı Bırak
+-- Bu dosyayı Supabase SQL Editor'da çalıştırın
+
+-- Ana tablolar
+ALTER TABLE markalar DISABLE ROW LEVEL SECURITY;
+ALTER TABLE modeller DISABLE ROW LEVEL SECURITY;
+ALTER TABLE departmanlar DISABLE ROW LEVEL SECURITY;
+ALTER TABLE lokasyonlar DISABLE ROW LEVEL SECURITY;
+ALTER TABLE personel DISABLE ROW LEVEL SECURITY;
+ALTER TABLE sistem_ayarlari DISABLE ROW LEVEL SECURITY;
+ALTER TABLE mac_adresleri DISABLE ROW LEVEL SECURITY;
+ALTER TABLE seri_numaralari DISABLE ROW LEVEL SECURITY;
+
+-- Ekipman tabloları
+ALTER TABLE ekipman_envanteri DISABLE ROW LEVEL SECURITY;
+ALTER TABLE envanter_hareketleri DISABLE ROW LEVEL SECURITY;
+ALTER TABLE bildirimler DISABLE ROW LEVEL SECURITY;
+ALTER TABLE qr_kodlari DISABLE ROW LEVEL SECURITY;
+ALTER TABLE export_gecmisi DISABLE ROW LEVEL SECURITY;
+ALTER TABLE bakim_kayitlari DISABLE ROW LEVEL SECURITY;
+ALTER TABLE uyari_kurallari DISABLE ROW LEVEL SECURITY;
+ALTER TABLE rapor_sablonlari DISABLE ROW LEVEL SECURITY;
+
+-- Kontrol
+SELECT schemaname, tablename, rowsecurity 
+FROM pg_tables 
+WHERE schemaname = 'public' 
+ORDER BY tablename; 

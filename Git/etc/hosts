@@ -1,0 +1,113 @@
+﻿# Copyright (c) 1993-2009 Microsoft Corp.
+#
+# This is a sample HOSTS file used by Microsoft TCP/IP for Windows.
+#
+# This file contains the mappings of IP addresses to host names. Each
+# entry should be kept on an individual line. The IP address should
+# be placed in the first column followed by the corresponding host name.
+# The IP address and the host name should be separated by at least one
+# space.
+#
+# Additionally, comments (such as these) may be inserted on individual
+# lines or following the machine name denoted by a '#' symbol.
+#
+# For example:
+#
+#      102.54.94.97     rhino.acme.com          # source server
+#       38.25.63.10     x.acme.com              # x client host
+
+# localhost name resolution is handled within DNS itself.
+#	127.0.0.1       localhost
+#	::1             localhost
+
+0.0.0.0 genuine.adobe.com
+0.0.0.0 assets.adobedtm.com
+0.0.0.0 ic.adobeio
+0.0.0.0 cc-api-data.adobeio
+0.0.0.0 lcs-cops.adobeio
+0.0.0.0 lcs-cops-ue1.adobeio
+0.0.0.0 lcs-cops-uw2.adobeio
+0.0.0.0 lcs-cops-prestage.adobeio
+0.0.0.0 lcs-cops-stage.adobeio
+0.0.0.0 lcs-cops-stage-uw2.adobeio
+0.0.0.0 dyzt55url8.adobeio
+0.0.0.0 b5kbg2ggog.adobeio
+0.0.0.0 5zgzzv92gn.adobeio
+0.0.0.0 0mo5a70cqa.adobeio
+0.0.0.0 pojvrj7ho5.adobeio
+0.0.0.0 i7pq6fgbsl.adobeio
+0.0.0.0 ph0f2h2csf.adobeio
+0.0.0.0 r3zj0yju1q.adobeio
+0.0.0.0 9ngulmtgqi.adobeio
+0.0.0.0 guzg78logz.adobeio
+0.0.0.0 2ftem87osk.adobeio
+0.0.0.0 1b9khekel6.adobeio
+0.0.0.0 3d3wqt96ht.adobeio
+0.0.0.0 23ynjitwt5.adobeio
+0.0.0.0 4vzokhpsbs.adobeio
+0.0.0.0 3ca52znvmj.adobeio
+0.0.0.0 r5hacgq5w6.adobeio
+0.0.0.0 gw8gfjbs05.adobeio
+0.0.0.0 lre1kgz2u4.adobeio
+0.0.0.0 ij0gdyrfka.adobeio
+0.0.0.0 8ncdzpmmrg.adobeio
+0.0.0.0 7sj9n87sls.adobeio
+0.0.0.0 7m31guub0q.adobeio
+0.0.0.0 7g2gzgk9g1.adobeio
+0.0.0.0 cd536oo20y.adobeio
+0.0.0.0 dxyeyf6ecy.adobeio
+0.0.0.0 jc95y2v12r.adobeio
+0.0.0.0 1hzopx6nz7.adobeio
+0.0.0.0 m59b4msyph.adobeio
+0.0.0.0 69tu0xswvq.adobeio
+0.0.0.0 vajcbj9qgq.adobeio
+0.0.0.0 p7uxzbht8h.adobeio
+0.0.0.0 vcorzsld2a.adobeio
+0.0.0.0 p0bjuoe16a.adobeio
+0.0.0.0 fqaq3pq1o9.adobeio
+0.0.0.0 aoorovjtha.adobeio
+0.0.0.0 pv256ds6c99.prod.cloud.adobeio
+0.0.0.0 cv2l4573ukh.prod.cloud.adobeio
+0.0.0.0 pv24v41zibm.prod.cloud.adobeio
+0.0.0.0 iv2nn9r0j2r.prod.cloud.adobeio
+0.0.0.0 iv2yt8sqmh0.prod.cloud.adobeio
+0.0.0.0 iv218qmzox6.prod.cloud.adobeio
+0.0.0.0 cv218qmzox6.prod.cloud.adobeio
+0.0.0.0 cv2b0yc07ls.prod.cloud.adobeio
+0.0.0.0 cv2nn9r0j2r.prod.cloud.adobeio
+0.0.0.0 pv2yt8sqmh0.prod.cloud.adobeio
+0.0.0.0 iv256ds6c99.prod.cloud.adobeio
+0.0.0.0 pv2zp87w2eo.prod.cloud.adobeio
+0.0.0.0 iv2ys4tjt9x.prod.cloud.adobeio
+0.0.0.0 cv2ska86hnt.prod.cloud.adobeio
+0.0.0.0 iv24b15c1z0.prod.cloud.adobeio
+0.0.0.0 cv256ds6c99.prod.cloud.adobeio
+0.0.0.0 pv2ska86hnt.prod.cloud.adobeio
+0.0.0.0 iv2b0yc07ls.prod.cloud.adobeio
+0.0.0.0 iv2l4573ukh.prod.cloud.adobeio
+0.0.0.0 cv24v41zibm.prod.cloud.adobeio
+0.0.0.0 iv2ska86hnt.prod.cloud.adobeio
+0.0.0.0 pv2l4573ukh.prod.cloud.adobeio
+0.0.0.0 iv24v41zibm.prod.cloud.adobeio
+0.0.0.0 iv2zp87w2eo.prod.cloud.adobeio
+0.0.0.0 pv2ys4tjt9x.prod.cloud.adobeio
+0.0.0.0 cv2ys4tjt9x.prod.cloud.adobeio
+0.0.0.0 cv2fcqvzl1r.prod.cloud.adobeio
+0.0.0.0 pv2fcqvzl1r.prod.cloud.adobeio
+0.0.0.0 cv24b15c1z0.prod.cloud.adobeio
+0.0.0.0 pv24b15c1z0.prod.cloud.adobeio
+0.0.0.0 cv2bqhsp36w.prod.cloud.adobeio
+0.0.0.0 pv2b0yc07ls.prod.cloud.adobeio
+0.0.0.0 pv218qmzox6.prod.cloud.adobeio
+0.0.0.0 cv2yt8sqmh0.prod.cloud.adobeio
+0.0.0.0 iv2fcqvzl1r.prod.cloud.adobeio
+0.0.0.0 pv2bqhsp36w.prod.cloud.adobeio
+0.0.0.0 pv2nn9r0j2r.prod.cloud.adobeio
+0.0.0.0 cv2zp87w2eo.prod.cloud.adobeio
+0.0.0.0 iv2bqhsp36w.prod.cloud.adobeio
+# Added by Docker Desktop
+10.10.1.25 host.docker.internal
+10.10.1.25 gateway.docker.internal
+# To allow the same kube context to work on the host and the container:
+127.0.0.1 kubernetes.docker.internal
+# End of section
