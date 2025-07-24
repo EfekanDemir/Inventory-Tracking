@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import React, { useState, useEffect } from 'react'
 import {
   Typography,
   Box,
@@ -12,6 +12,7 @@ import {
   Select,
   MenuItem,
   LinearProgress,
+  Divider,
 } from '@mui/material'
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider'
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns'
@@ -35,7 +36,8 @@ import {
 import {
   Assessment as ReportIcon,
   GetApp as DownloadIcon,
-
+  DateRange as DateIcon,
+  TrendingUp as TrendingIcon,
 } from '@mui/icons-material'
 import { supabase } from '../config/supabase'
 import { exportSummaryReport } from '../utils/exportUtils'
@@ -228,35 +230,22 @@ const Reports = () => {
   }
 
   const fetchDailyActivity = async () => {
-    try {
-      const thirtyDaysAgo = new Date();
-      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-      
-      const { data, error } = await supabase
-        .from('envanter_hareketleri')
-        .select('created_at, islem_tipi')
-        .gte('created_at', thirtyDaysAgo.toISOString())
-        .order('created_at')
+    const { data } = await supabase
+      .from('envanter_hareketleri')
+      .select('created_at, islem_tipi')
+      .gte('created_at', new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()) // Son 30 gün
+      .order('created_at')
 
-      if (error) {
-        console.error('Günlük aktivite verisi yükleme hatası:', error);
-        return [];
+    const dailyData = {}
+    data?.forEach(item => {
+      const date = new Date(item.created_at).toLocaleDateString('tr-TR')
+      if (!dailyData[date]) {
+        dailyData[date] = { date, 'Yeni Kayıt': 0, 'Güncelleme': 0 }
       }
+      dailyData[date][item.islem_tipi] = (dailyData[date][item.islem_tipi] || 0) + 1
+    })
 
-      const dailyData = {}
-      data?.forEach(item => {
-        const date = new Date(item.created_at).toLocaleDateString('tr-TR')
-        if (!dailyData[date]) {
-          dailyData[date] = { date, 'Yeni Kayıt': 0, 'Güncelleme': 0 }
-        }
-        dailyData[date][item.islem_tipi] = (dailyData[date][item.islem_tipi] || 0) + 1
-      })
-
-      return Object.values(dailyData).slice(-14) // Son 14 gün
-    } catch (error) {
-      console.error('Günlük aktivite hatası:', error);
-      return [];
-    }
+    return Object.values(dailyData).slice(-14) // Son 14 gün
   }
 
   const handleExportReport = () => {

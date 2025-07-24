@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import {
   Typography,
@@ -52,6 +52,7 @@ const AddInventory = () => {
     model_id: '',
     lokasyon_id: '',
     seri_no: '',
+    barkod: '',
     atanan_personel_id: '',
     ofise_giris_tarihi: null,
     ofisten_cikis_tarihi: null,
@@ -193,25 +194,35 @@ const AddInventory = () => {
   const fetchEquipmentData = async () => {
     setLoading(true)
     try {
+      // Ekipman verisini ve ilişkili MAC/seri bilgilerini al
       const { data, error } = await supabase
         .from('ekipman_envanteri')
-        .select('*')
+        .select(`
+          *,
+          mac_adresleri(mac_adresi),
+          seri_numaralari(seri_no)
+        `)
         .eq('id', id)
         .single()
 
       if (error) throw error
 
+      // MAC adresi ve seri numarasını al
+      const macAdresi = data.mac_adresleri?.mac_adresi || ''
+      const seriNo = data.seri_numaralari?.seri_no || ''
+
       // Sadece tablo alanlarını al, JOIN edilen verileri hariç tut
       const equipmentData = {
-        mac_adresi: data.mac_adresi || '',
+        mac_adresi: macAdresi,
         marka_id: data.marka_id ? String(data.marka_id) : '',
         model_id: data.model_id ? String(data.model_id) : '',
         lokasyon_id: data.lokasyon_id ? String(data.lokasyon_id) : '',
-        seri_no: data.seri_no || '',
+        seri_no: seriNo,
         atanan_personel_id: data.atanan_personel_id ? String(data.atanan_personel_id) : '',
         ofise_giris_tarihi: data.ofise_giris_tarihi ? new Date(data.ofise_giris_tarihi) : null,
         ofisten_cikis_tarihi: data.ofisten_cikis_tarihi ? new Date(data.ofisten_cikis_tarihi) : null,
         aciklama: data.aciklama || '',
+        barkod: data.barkod || '',
       }
 
       setFormData(equipmentData)
@@ -232,6 +243,7 @@ const AddInventory = () => {
       model_id: 'Model',
       lokasyon_id: 'Lokasyon',
       seri_no: 'Seri Numarası',
+      barkod: 'Barkod',
       atanan_personel_id: 'Atanan Personel',
       ofise_giris_tarihi: 'Ofise Giriş Tarihi',
       ofisten_cikis_tarihi: 'Ofisten Çıkış Tarihi',
@@ -244,22 +256,18 @@ const AddInventory = () => {
     if (!value) return '-'
     
     switch (field) {
-      case 'marka_id': {
+      case 'marka_id':
         const marka = brands.find(b => b.id === parseInt(value))
         return marka ? marka.marka_adi : value
-      }
-      case 'model_id': {
+      case 'model_id':
         const model = models.find(m => m.id === parseInt(value))
         return model ? model.model_adi : value
-      }
-      case 'lokasyon_id': {
+      case 'lokasyon_id':
         const lokasyon = locations.find(l => l.id === parseInt(value))
         return lokasyon ? lokasyon.lokasyon_adi : value
-      }
-      case 'atanan_personel_id': {
+      case 'atanan_personel_id':
         const personel = personnel.find(p => p.id === parseInt(value))
         return personel ? `${personel.ad} ${personel.soyad}` : value
-      }
       case 'ofise_giris_tarihi':
       case 'ofisten_cikis_tarihi':
         if (value instanceof Date) {
@@ -277,7 +285,7 @@ const AddInventory = () => {
     const changes = []
     const fieldsToCheck = [
       'mac_adresi', 'marka_id', 'model_id', 'lokasyon_id', 
-      'seri_no', 'atanan_personel_id', 'ofise_giris_tarihi', 
+      'seri_no', 'barkod', 'atanan_personel_id', 'ofise_giris_tarihi', 
       'ofisten_cikis_tarihi', 'aciklama'
     ]
     
@@ -523,13 +531,48 @@ const AddInventory = () => {
         }
       }
 
+      // MAC adresi ve seri numarası ID'lerini bul
+      let macAdresiId = null
+      let seriNoId = null
+
+      // MAC adresi ID'sini bul
+      if (formData.mac_adresi) {
+        const { data: macData, error: macError } = await supabase
+          .from('mac_adresleri')
+          .select('id')
+          .eq('mac_adresi', formData.mac_adresi)
+          .single()
+
+        if (macError) {
+          console.error('MAC adresi bulunamadı:', macError)
+          throw new Error('Seçilen MAC adresi bulunamadı')
+        }
+        macAdresiId = macData.id
+      }
+
+      // Seri numarası ID'sini bul
+      if (formData.seri_no) {
+        const { data: seriData, error: seriError } = await supabase
+          .from('seri_numaralari')
+          .select('id')
+          .eq('seri_no', formData.seri_no)
+          .single()
+
+        if (seriError) {
+          console.error('Seri numarası bulunamadı:', seriError)
+          throw new Error('Seçilen seri numarası bulunamadı')
+        }
+        seriNoId = seriData.id
+      }
+
       // Sadece veritabanı alanlarını gönder, JOIN edilen verileri hariç tut
       const submitData = {
-        mac_adresi: formData.mac_adresi || null,
+        mac_adresi_id: macAdresiId,
+        seri_no_id: seriNoId,
+        barkod: formData.barkod || null,
         marka_id: formData.marka_id ? parseInt(formData.marka_id) : null,
         model_id: formData.model_id ? parseInt(formData.model_id) : null,
         lokasyon_id: finalLokasyonId,
-        seri_no: formData.seri_no || '',
         atanan_personel_id: formData.atanan_personel_id ? parseInt(formData.atanan_personel_id) : null,
         ofise_giris_tarihi: formData.ofise_giris_tarihi ? 
           formData.ofise_giris_tarihi.toISOString().split('T')[0] : null,
@@ -559,19 +602,19 @@ const AddInventory = () => {
       if (result.error) throw result.error
 
       // MAC ve Seri numarası durumlarını güncelle
-      // MAC adresi opsiyonel olduğu için sadece boş değilse güncelle
-      await updateMacSerialStatus(
-        formData.mac_adresi || null, 
-        formData.seri_no, 
-        'KULLANILIYOR'
-      )
+      if (macAdresiId) {
+        await updateMacSerialStatus(formData.mac_adresi, null, 'KULLANIMDA')
+      }
+      if (seriNoId) {
+        await updateMacSerialStatus(null, formData.seri_no, 'KULLANIMDA')
+      }
 
       // Eğer edit modunda ve MAC/seri numarası değiştiyse eskilerini müsait yap
       if (isEditMode && originalData) {
         if (originalData.mac_adresi !== formData.mac_adresi && originalData.mac_adresi) {
           await updateMacSerialStatus(originalData.mac_adresi, null, 'MUSAIT')
         }
-        if (originalData.seri_no !== formData.seri_no) {
+        if (originalData.seri_no !== formData.seri_no && originalData.seri_no) {
           await updateMacSerialStatus(null, originalData.seri_no, 'MUSAIT')
         }
       }
@@ -605,10 +648,12 @@ const AddInventory = () => {
       console.error('Form gönderme hatası:', error)
       
       if (error.code === '23505') {
-        if (error.message.includes('mac_adresi')) {
-          setError('Bu MAC adresi zaten kayıtlı. Lütfen farklı bir MAC adresi seçin.')
-        } else if (error.message.includes('seri_no')) {
-          setError('Bu seri numarası zaten kayıtlı. Lütfen farklı bir seri numarası seçin.')
+        if (error.message.includes('mac_adresi_id')) {
+          setError('Bu MAC adresi zaten başka bir ekipmana atanmış. Lütfen farklı bir MAC adresi seçin.')
+        } else if (error.message.includes('seri_no_id')) {
+          setError('Bu seri numarası zaten başka bir ekipmana atanmış. Lütfen farklı bir seri numarası seçin.')
+        } else if (error.message.includes('barkod')) {
+          setError('Bu barkod zaten kayıtlı. Lütfen farklı bir barkod girin.')
         } else {
           setError('Bu bilgiler zaten kayıtlı. Lütfen benzersiz değerler seçin.')
         }
@@ -725,6 +770,16 @@ const AddInventory = () => {
                     )}
                   </Select>
                 </FormControl>
+              </Grid>
+
+              <Grid item xs={12} md={6}>
+                <TextField
+                  fullWidth
+                  label="Barkod (Opsiyonel)"
+                  value={formData.barkod || ''}
+                  onChange={(e) => handleChange('barkod', e.target.value)}
+                  placeholder="QR/Barkod numarası"
+                />
               </Grid>
 
               <Grid item xs={12} md={6}>

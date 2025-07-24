@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 // MUI Lab Timeline kaldırıldı - theme sorunu nedeniyle
 import {
@@ -167,7 +167,20 @@ const InventoryHistory = () => {
     }
   }
 
-
+  const getOperationColor = (operationType) => {
+    switch (operationType) {
+      case 'Yeni Kayıt':
+        return 'success'
+      case 'Güncelleme':
+        return 'primary'
+      case 'Silme':
+        return 'error'
+      case 'Bakım':
+        return 'warning'
+      default:
+        return 'info'
+    }
+  }
 
   const formatJsonData = (data) => {
     if (!data) return null
@@ -546,7 +559,7 @@ const InventoryHistory = () => {
           </Alert>
         ) : (
           <Box>
-            {history.map((record) => (
+            {history.map((record, index) => (
               <Card key={record.id} variant="outlined" sx={{ mb: 2 }}>
                 <CardContent>
                   <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>

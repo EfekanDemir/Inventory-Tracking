@@ -13,7 +13,7 @@ export const sendEmailNotification = async (recipientEmail, subject, message, eq
     }
 
     // Supabase Edge Function çağrısı (geliştirilecek)
-    const { error } = await supabase.functions.invoke('send-email', {
+    const { data, error } = await supabase.functions.invoke('send-email', {
       body: emailData
     })
 
@@ -59,7 +59,7 @@ export const sendSMSNotification = async (phoneNumber, message, equipmentData = 
     }
 
     // Supabase Edge Function çağrısı (geliştirilecek)
-    const { error } = await supabase.functions.invoke('send-sms', {
+    const { data, error } = await supabase.functions.invoke('send-sms', {
       body: smsData
     })
 

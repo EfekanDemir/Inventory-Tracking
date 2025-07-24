@@ -1,9 +1,8 @@
+import React from 'react'
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom'
 import { ThemeProvider, createTheme } from '@mui/material/styles'
 import { CssBaseline, Container } from '@mui/material'
 import { Toaster } from 'react-hot-toast'
-import { useEffect } from 'react'
-import { setupChunkErrorHandler } from './utils/errorHandler'
 import Navbar from './components/Navbar'
 import Dashboard from './pages/Dashboard'
 import InventoryList from './pages/InventoryList'
@@ -39,29 +38,10 @@ const theme = createTheme({
 })
 
 function App() {
-  // Global error handler
-  useEffect(() => {
-    const handleError = (event) => {
-      console.error('Global error:', event.error)
-    }
-
-    const handleUnhandledRejection = (event) => {
-      console.error('Unhandled promise rejection:', event.reason)
-    }
-
-    window.addEventListener('error', handleError)
-    window.addEventListener('unhandledrejection', handleUnhandledRejection)
-
-    return () => {
-      window.removeEventListener('error', handleError)
-      window.removeEventListener('unhandledrejection', handleUnhandledRejection)
-    }
-  }, [])
-
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
-      <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+      <Router>
         <div className="app-container">
           <Toaster 
             position="top-right"

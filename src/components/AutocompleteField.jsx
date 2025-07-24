@@ -1,6 +1,5 @@
-import { useState, useEffect } from 'react'
+import React, { useState, useEffect } from 'react'
 import { Autocomplete, TextField, Chip } from '@mui/material'
-import PropTypes from 'prop-types'
 import { supabase } from '../config/supabase'
 
 const AutocompleteField = ({ 
@@ -97,20 +96,6 @@ const AutocompleteField = ({
       handleHomeEndKeys
     />
   )
-}
-
-AutocompleteField.propTypes = {
-  label: PropTypes.string.isRequired,
-  value: PropTypes.oneOfType([
-    PropTypes.string,
-    PropTypes.arrayOf(PropTypes.string)
-  ]),
-  onChange: PropTypes.func.isRequired,
-  tableName: PropTypes.string.isRequired,
-  columnName: PropTypes.string.isRequired,
-  required: PropTypes.bool,
-  multiple: PropTypes.bool,
-  type: PropTypes.string
 }
 
 export default AutocompleteField 

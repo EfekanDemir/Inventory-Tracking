@@ -37,6 +37,7 @@ import {
   Edit as EditIcon,
 } from '@mui/icons-material'
 import { supabase } from '../config/supabase'
+import { showToast } from '../utils/notificationUtils'
 
 const Availability = () => {
   const navigate = useNavigate()
@@ -381,7 +382,7 @@ const Availability = () => {
                       </Box>
                     }
                     secondary={
-                      <>
+                      <Box>
                         <Typography variant="body2" color="text.secondary">
                           <strong>Seri No:</strong> {item.seri_no || '-'} | 
                           <strong> MAC:</strong> {item.mac_adresi || '-'} | 
@@ -398,7 +399,7 @@ const Availability = () => {
                             <strong>Çıkış Tarihi:</strong> {new Date(item.ofisten_cikis_tarihi).toLocaleDateString('tr-TR')}
                           </Typography>
                         )}
-                      </>
+                      </Box>
                     }
                   />
                   

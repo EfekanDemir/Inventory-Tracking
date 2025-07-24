@@ -1,6 +1,5 @@
-import { useState, useEffect } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import PropTypes from 'prop-types'
 import {
   Typography,
   Grid,
@@ -40,13 +39,6 @@ const StatCard = ({ title, value, icon, color = 'primary' }) => (
     </CardContent>
   </Card>
 )
-
-StatCard.propTypes = {
-  title: PropTypes.string.isRequired,
-  value: PropTypes.oneOfType([PropTypes.string, PropTypes.number]).isRequired,
-  icon: PropTypes.node.isRequired,
-  color: PropTypes.string
-}
 
 const Dashboard = () => {
   const navigate = useNavigate()

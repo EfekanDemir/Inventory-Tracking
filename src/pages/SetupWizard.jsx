@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import React, { useState, useEffect } from 'react'
 import {
   Box,
   Typography,
@@ -30,10 +30,15 @@ import {
   Chip
 } from '@mui/material'
 import {
+  Business as BusinessIcon,
+  LocationOn as LocationIcon,
+  Computer as ComputerIcon,
+  People as PeopleIcon,
   Save as SaveIcon,
   Delete as DeleteIcon,
   Add as AddIcon,
-  Edit as EditIcon
+  Edit as EditIcon,
+  Visibility as ViewIcon
 } from '@mui/icons-material'
 import { supabase } from '../config/supabase'
 import toast from 'react-hot-toast'
@@ -43,7 +48,7 @@ const SetupWizard = () => {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
-
+  const [editMode, setEditMode] = useState(false)
   const [editDialogOpen, setEditDialogOpen] = useState(false)
   const [editingItem, setEditingItem] = useState(null)
   const [editingType, setEditingType] = useState('')
@@ -531,7 +536,7 @@ const SetupWizard = () => {
     
     try {
       switch (step) {
-        case 0: { // Departmanlar
+        case 0: // Departmanlar
           const validDepartments = departments.filter(dept => dept.departman_adi.trim() !== '')
           if (validDepartments.length === 0) {
             throw new Error('En az bir departman eklenmelidir.')
@@ -544,9 +549,8 @@ const SetupWizard = () => {
           if (deptError) throw deptError
           await loadExistingData()
           break
-        }
 
-        case 1: { // Lokasyonlar
+        case 1: // Lokasyonlar
           const validLocations = locations.filter(loc => 
             loc.lokasyon_kodu.trim() !== '' && 
             loc.lokasyon_adi.trim() !== '' && 
@@ -563,9 +567,8 @@ const SetupWizard = () => {
           if (locError) throw locError
           await loadExistingData()
           break
-        }
 
-        case 2: { // Markalar
+        case 2: // Markalar
           const validBrands = brands.filter(brand => brand.marka_adi.trim() !== '')
           if (validBrands.length === 0) {
             throw new Error('En az bir marka eklenmelidir.')
@@ -578,9 +581,8 @@ const SetupWizard = () => {
           if (brandError) throw brandError
           await loadExistingData()
           break
-        }
 
-        case 3: { // Modeller
+        case 3: // Modeller
           const validModels = models.filter(model => 
             model.model_adi.trim() !== '' && 
             model.marka_id !== '' &&
@@ -644,9 +646,8 @@ const SetupWizard = () => {
           
           await loadExistingData()
           break
-        }
 
-        case 4: { // Personel
+        case 4: // Personel
           const validPersonnel = personnel.filter(person => 
             person.ad.trim() !== '' && 
             person.soyad.trim() !== '' && 
@@ -664,7 +665,8 @@ const SetupWizard = () => {
           if (personnelError) throw personnelError
           await loadExistingData()
           break
-        }
+
+
       }
       
       setSuccess(`${steps[step]} başarıyla kaydedildi!`)
@@ -1064,7 +1066,7 @@ const SetupWizard = () => {
               { 
                 field: 'seri_count', 
                 header: 'Seri Numaraları',
-                render: () => {
+                render: (item) => {
                   // Bu kısım daha sonra veritabanından seri numarası sayısını alacak
                   return 'Yükleniyor...'
                 }
@@ -1072,7 +1074,7 @@ const SetupWizard = () => {
               { 
                 field: 'mac_count', 
                 header: 'MAC Adresleri',
-                render: () => {
+                render: (item) => {
                   // Bu kısım daha sonra veritabanından MAC adresi sayısını alacak
                   return 'Yükleniyor...'
                 }

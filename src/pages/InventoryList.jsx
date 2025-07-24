@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   Typography,
@@ -20,7 +20,7 @@ import {
   Refresh as RefreshIcon,
   GetApp as ExcelIcon,
   QrCode as QrCodeIcon,
-
+  Print as PrintIcon,
   Delete as DeleteIcon,
 } from '@mui/icons-material'
 import { supabase } from '../config/supabase'
@@ -87,15 +87,23 @@ const InventoryList = () => {
     }
   }
 
-  // Verileri yükle - View tablosu kullanarak
+  // Verileri yükle
   const fetchEquipment = async () => {
     setLoading(true)
     setError(null)
     try {
-      // View tablosundan aktif ekipmanları al
+      // JOIN'li sorgu ile tüm ilişkili verileri al
       const { data, error } = await supabase
-        .from('v_aktif_ekipman')
-        .select('*')
+        .from('ekipman_envanteri')
+        .select(`
+          *,
+          markalar(marka_adi),
+          modeller(model_adi),
+          lokasyonlar(lokasyon_adi),
+          atanan_personel:personel!atanan_personel_id(ad, soyad),
+          mac_adresleri(mac_adresi),
+          seri_numaralari(seri_no)
+        `)
         .order('created_at', { ascending: false })
 
       if (error) throw error
@@ -103,13 +111,16 @@ const InventoryList = () => {
       // Verileri işle ve computed field'ları oluştur
       const processedData = (data || []).map(item => ({
         ...item,
-        marka_model: item.marka_adi && item.model_adi 
-          ? `${item.marka_adi} ${item.model_adi}` 
+        // MAC adresi ve seri numarasını al
+        mac_adresi: item.mac_adresleri?.mac_adresi || '',
+        seri_no: item.seri_numaralari?.seri_no || '',
+        marka_model: item.markalar && item.modeller 
+          ? `${item.markalar.marka_adi} ${item.modeller.model_adi}` 
           : 'Bilgi Yok',
-        konum_adi: item.lokasyon_adi || 'Bilinmiyor',
-        agent_name: item.personel_ad && item.personel_soyad
-          ? `${item.personel_ad} ${item.personel_soyad}`
-          : '-'
+        konum_adi: item.lokasyonlar?.lokasyon_adi || 'Bilinmiyor',
+        agent_name: item.atanan_personel 
+          ? `${item.atanan_personel.ad} ${item.atanan_personel.soyad}`
+          : (item.agent || '-') // Fallback to existing agent field
       }))
       
       setEquipment(processedData)
@@ -122,115 +133,90 @@ const InventoryList = () => {
     }
   }
 
-  // Soft delete ile kayıtları sil
-  const handleSoftDeleteSelected = async () => {
+  // Seçili kayıtları geçmişe aktar
+  const handleArchiveSelected = async () => {
     if (selectedRows.length === 0) {
-      showToast('Silmek için en az bir kayıt seçin.', 'warning')
+      showToast('Geçmişe aktarmak için en az bir kayıt seçin.', 'warning')
       return
     }
 
-    if (!window.confirm(`${selectedRows.length} kayıt silinecek. Bu işlem geri alınabilir. Emin misiniz?`)) {
+    if (!window.confirm(`${selectedRows.length} kayıt geçmişe aktarılacak. Emin misiniz?`)) {
       return
     }
 
     setLoading(true)
     try {
-      // Mevcut kullanıcı ID'sini al
-      const { data: { user } } = await supabase.auth.getUser()
-      let personelId = 1 // Varsayılan değer
+      // Seçili kayıtları al
+      const recordsToArchive = equipment.filter(item => selectedRows.includes(item.id))
       
-      if (user) {
-        // Personel ID'sini al
-        const { data: personelData } = await supabase
-          .from('personel')
-          .select('id')
-          .eq('user_id', user.id)
-          .single()
+      // Kayıtları geçmiş tablosuna ekle
+      const archiveData = recordsToArchive.map(record => ({
+        orijinal_id: record.id,
+        mac_adresi: record.mac_adresi || '', // JOIN'den gelen değer
+        seri_no: record.seri_no || '', // JOIN'den gelen değer
+        barkod: record.barkod,
+        marka_id: record.marka_id,
+        model_id: record.model_id,
+        lokasyon_id: record.lokasyon_id,
+        atanan_personel_id: record.atanan_personel_id,
+        satin_alma_tarihi: record.satin_alma_tarihi,
+        garanti_bitis_tarihi: record.garanti_bitis_tarihi,
+        ofise_giris_tarihi: record.ofise_giris_tarihi,
+        ofisten_cikis_tarihi: record.ofisten_cikis_tarihi,
+        geri_donus_tarihi: record.geri_donus_tarihi,
+        satin_alma_fiyati: record.satin_alma_fiyati,
+        amortisman_suresi: record.amortisman_suresi,
+        defter_degeri: record.defter_degeri,
+        fiziksel_durum: record.fiziksel_durum,
+        calismma_durumu: record.calismma_durumu,
+        aciklama: record.aciklama,
+        ozel_notlar: record.ozel_notlar,
+        arsiv_nedeni: 'SILINDI',
+        arsiv_notu: 'Kullanıcı tarafından silindi',
+        created_by: record.created_by,
+        updated_by: record.updated_by,
+      }))
 
-        if (personelData) {
-          personelId = personelData.id
-        }
-      } else {
-        console.log('Kullanıcı giriş yapmamış, varsayılan personel ID kullanılıyor')
+      // Önce geçmişe ekle
+      const { error: archiveError } = await supabase
+        .from('ekipman_gecmisi')
+        .insert(archiveData)
+
+      if (archiveError) {
+        console.error('Geçmişe aktarma hatası:', archiveError)
+        showToast('Kayıtlar geçmişe aktarılırken hata oluştu.', 'error')
+        return
       }
 
-      // Soft delete fonksiyonunu çağır
-      const { data: deleteResult, error } = await supabase
-        .rpc('soft_delete_multiple_ekipman', {
-          p_ekipman_ids: selectedRows,
-          p_silen_personel_id: personelId,
-          p_silme_nedeni: 'MANUEL_SILME'
-        })
+      // İlişkili hareket kayıtlarını sil (CASCADE çalışmıyorsa manuel sil)
+      const { error: movementError } = await supabase
+        .from('envanter_hareketleri')
+        .delete()
+        .in('ekipman_id', selectedRows)
 
-      if (error) {
-        console.error('Soft delete hatası:', error)
+      if (movementError) {
+        console.error('Hareket kayıtları silme hatası:', movementError)
+        // Hata olsa bile devam et, belki CASCADE zaten çalışmıştır
+      }
+
+      // Ana tablodan kayıtları sil
+      const { error: deleteError } = await supabase
+        .from('ekipman_envanteri')
+        .delete()
+        .in('id', selectedRows)
+
+      if (deleteError) {
+        console.error('Silme hatası:', deleteError)
         showToast('Kayıtlar silinirken hata oluştu.', 'error')
         return
       }
 
-      showToast(`${deleteResult} kayıt başarıyla silindi.`, 'success')
+      showToast(`${selectedRows.length} kayıt başarıyla geçmişe aktarıldı.`, 'success')
       setSelectedRows([])
-      
-      // Verileri yeniden yükle
-      await fetchEquipment()
-      
+      await fetchEquipment() // Listeyi yenile
     } catch (error) {
-      console.error('Soft delete işlemi hatası:', error)
-      showToast('Kayıtlar silinirken hata oluştu.', 'error')
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  // Tekil kayıt silme
-  const handleSoftDeleteSingle = async (ekipmanId) => {
-    if (!window.confirm('Bu kayıt silinecek. Bu işlem geri alınabilir. Emin misiniz?')) {
-      return
-    }
-
-    setLoading(true)
-    try {
-      // Mevcut kullanıcı ID'sini al
-      const { data: { user } } = await supabase.auth.getUser()
-      let personelId = 1 // Varsayılan değer
-      
-      if (user) {
-        // Personel ID'sini al
-        const { data: personelData } = await supabase
-          .from('personel')
-          .select('id')
-          .eq('user_id', user.id)
-          .single()
-
-        if (personelData) {
-          personelId = personelData.id
-        }
-      } else {
-        console.log('Kullanıcı giriş yapmamış, varsayılan personel ID kullanılıyor')
-      }
-
-      // Soft delete fonksiyonunu çağır
-      const { error } = await supabase
-        .rpc('soft_delete_ekipman', {
-          p_ekipman_id: ekipmanId,
-          p_silen_personel_id: personelId,
-          p_silme_nedeni: 'MANUEL_SILME'
-        })
-
-      if (error) {
-        console.error('Soft delete hatası:', error)
-        showToast('Kayıt silinirken hata oluştu.', 'error')
-        return
-      }
-
-      showToast('Kayıt başarıyla silindi.', 'success')
-      
-      // Verileri yeniden yükle
-      await fetchEquipment()
-      
-    } catch (error) {
-      console.error('Soft delete işlemi hatası:', error)
-      showToast('Kayıt silinirken hata oluştu.', 'error')
+      console.error('Geçmişe aktarma hatası:', error)
+      showToast('Kayıtlar geçmişe aktarılırken hata oluştu.', 'error')
     } finally {
       setLoading(false)
     }
@@ -247,7 +233,7 @@ const InventoryList = () => {
   const ensureOfficeLocation = async () => {
     try {
       // "Ofis" lokasyonunu kontrol et
-      const { error: checkError } = await supabase
+      const { data: officeLocation, error: checkError } = await supabase
         .from('lokasyonlar')
         .select('id')
         .eq('lokasyon_kodu', 'OFIS')
@@ -275,21 +261,12 @@ const InventoryList = () => {
     }
   }
 
-  // Ofise giriş tarihi dolu olan kayıtları otomatik soft delete yap
+  // Ofise giriş tarihi dolu olan kayıtları otomatik geçmişe aktar
   const checkAndArchiveOfficeEntries = async () => {
-    // İşlem kilidi kontrolü
-    if (window.isArchiving) {
-      console.log('Arşivleme işlemi zaten devam ediyor...');
-      return;
-    }
-    
     try {
-      // İşlem kilidini aktifleştir
-      window.isArchiving = true;
-      
-      // Ofise giriş tarihi dolu olan aktif kayıtları bul
+      // Ofise giriş tarihi dolu olan kayıtları bul
       const { data: officeEntries, error } = await supabase
-        .from('v_aktif_ekipman')
+        .from('ekipman_envanteri')
         .select('*')
         .not('ofise_giris_tarihi', 'is', null)
 
@@ -299,51 +276,73 @@ const InventoryList = () => {
       }
 
       if (officeEntries && officeEntries.length > 0) {
-        console.log(`${officeEntries.length} adet ofise giriş kaydı bulundu, soft delete yapılıyor...`)
+        console.log(`${officeEntries.length} adet ofise giriş kaydı bulundu, geçmişe aktarılıyor...`)
 
-        // Mevcut kullanıcı ID'sini al
-        const { data: { user } } = await supabase.auth.getUser()
-        let personelId = 1 // Varsayılan değer
-        
-        if (user) {
-          // Personel ID'sini al
-          const { data: personelData } = await supabase
-            .from('personel')
-            .select('id')
-            .eq('user_id', user.id)
-            .single()
+        // Bu kayıtları geçmişe aktar
+        const archiveData = officeEntries.map(record => ({
+          orijinal_id: record.id,
+          mac_adresi: record.mac_adresi,
+          seri_no: record.seri_no,
+          barkod: record.barkod,
+          marka_id: record.marka_id,
+          model_id: record.model_id,
+          lokasyon_id: record.lokasyon_id,
+          atanan_personel_id: record.atanan_personel_id,
+          satin_alma_tarihi: record.satin_alma_tarihi,
+          garanti_bitis_tarihi: record.garanti_bitis_tarihi,
+          ofise_giris_tarihi: record.ofise_giris_tarihi,
+          ofisten_cikis_tarihi: record.ofisten_cikis_tarihi,
+          geri_donus_tarihi: record.geri_donus_tarihi,
+          satin_alma_fiyati: record.satin_alma_fiyati,
+          amortisman_suresi: record.amortisman_suresi,
+          defter_degeri: record.defter_degeri,
+          fiziksel_durum: record.fiziksel_durum,
+          calismma_durumu: record.calismma_durumu,
+          aciklama: record.aciklama,
+          ozel_notlar: record.ozel_notlar,
+          arsiv_nedeni: 'OFISE_GIRDI',
+          arsiv_notu: 'Otomatik: Ofise giriş tarihi dolu',
+          created_by: record.created_by,
+          updated_by: record.updated_by,
+        }))
 
-          if (personelData) {
-            personelId = personelData.id
-          }
-        } else {
-          console.log('Kullanıcı giriş yapmamış, varsayılan personel ID kullanılıyor')
-        }
+        // Önce geçmişe ekle
+        const { error: archiveError } = await supabase
+          .from('ekipman_gecmisi')
+          .insert(archiveData)
 
-        // Soft delete fonksiyonunu çağır
-        const { data: deleteResult, error: deleteError } = await supabase
-          .rpc('soft_delete_multiple_ekipman', {
-            p_ekipman_ids: officeEntries.map(r => r.id),
-            p_silen_personel_id: personelId,
-            p_silme_nedeni: 'OFISE_GIRDI'
-          })
-
-        if (deleteError) {
-          console.error('Otomatik soft delete hatası:', deleteError)
+        if (archiveError) {
+          console.error('Otomatik geçmişe aktarma hatası:', archiveError)
           return
         }
 
-        console.log(`${deleteResult} kayıt otomatik olarak soft delete yapıldı`)
-        showToast(`${deleteResult} kayıt ofise giriş nedeniyle soft delete yapıldı`, 'info')
-        
-        // Verileri yeniden yükle
-        await fetchEquipment()
+        // İlişkili hareket kayıtlarını sil (CASCADE çalışmıyorsa manuel sil)
+        const { error: movementError } = await supabase
+          .from('envanter_hareketleri')
+          .delete()
+          .in('ekipman_id', officeEntries.map(r => r.id))
+
+        if (movementError) {
+          console.error('Hareket kayıtları silme hatası:', movementError)
+          // Hata olsa bile devam et, belki CASCADE zaten çalışmıştır
+        }
+
+        // Ana tablodan sil (CASCADE ile hareket geçmişi de silinecek)
+        const { error: deleteError } = await supabase
+          .from('ekipman_envanteri')
+          .delete()
+          .in('id', officeEntries.map(r => r.id))
+
+        if (deleteError) {
+          console.error('Otomatik silme hatası:', deleteError)
+          return
+        }
+
+        console.log(`${officeEntries.length} kayıt otomatik olarak geçmişe aktarıldı`)
+        showToast(`${officeEntries.length} kayıt ofise giriş nedeniyle geçmişe aktarıldı`, 'info')
       }
     } catch (error) {
-      console.error('Otomatik soft delete hatası:', error)
-    } finally {
-      // İşlem kilidini kaldır
-      window.isArchiving = false;
+      console.error('Otomatik geçmiş aktarım hatası:', error)
     }
   }
 
@@ -361,7 +360,16 @@ const InventoryList = () => {
     }
   }, [searchTerm, equipment])
 
-
+  // Konum durumuna göre renk
+  const getLocationChipColor = (location) => {
+    switch (location) {
+      case 'BOŞTA': return 'success'
+      case 'AGENT': return 'primary'
+      case 'EĞİTMEN': return 'secondary'
+      case 'AGENT TR': return 'warning'
+      default: return 'default'
+    }
+  }
 
   // DataGrid sütunları
   const columns = [
@@ -440,7 +448,7 @@ const InventoryList = () => {
     {
       field: 'actions',
       headerName: 'İşlemler',
-      width: 150,
+      width: 120,
       sortable: false,
       renderCell: (params) => (
         <Box>
@@ -460,15 +468,6 @@ const InventoryList = () => {
               color="secondary"
             >
               <HistoryIcon />
-            </IconButton>
-          </Tooltip>
-          <Tooltip title="Sil">
-            <IconButton
-              size="small"
-              onClick={() => handleSoftDeleteSingle(params.row.id)}
-              color="error"
-            >
-              <DeleteIcon />
             </IconButton>
           </Tooltip>
         </Box>
@@ -504,10 +503,10 @@ const InventoryList = () => {
             <Button
               variant="outlined"
               startIcon={<DeleteIcon />}
-              onClick={handleSoftDeleteSelected}
+              onClick={handleArchiveSelected}
               color="error"
             >
-              Sil ({selectedRows.length})
+              Geçmişe Aktar ({selectedRows.length})
             </Button>
           )}
           <Button

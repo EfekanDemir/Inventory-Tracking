@@ -1,5 +1,4 @@
-import { createContext, useContext, useEffect, useState } from 'react'
-import PropTypes from 'prop-types'
+import React, { createContext, useContext, useEffect, useState } from 'react'
 import { supabase } from '../config/supabase'
 
 const AuthContext = createContext({})
@@ -93,8 +92,4 @@ export const AuthProvider = ({ children }) => {
       {children}
     </AuthContext.Provider>
   )
-}
-
-AuthProvider.propTypes = {
-  children: PropTypes.node.isRequired
 } 
