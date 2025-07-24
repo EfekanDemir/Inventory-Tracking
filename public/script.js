@@ -313,19 +313,29 @@ async function recordTransaction(event) {
     }
 }
 
-// Load transactions - BUG: No pagination for large datasets
-async function loadTransactions() {
+// Load transactions - Fixed: Handle paginated response
+async function loadTransactions(page = 1, limit = 50) {
     try {
-        const response = await fetch(`${API_BASE}/transactions`);
-        transactions = await response.json();
-        displayTransactions(transactions);
+        const response = await fetch(`${API_BASE}/transactions?page=${page}&limit=${limit}`);
+        const data = await response.json();
+        
+        // Handle both old and new API response formats
+        if (data.transactions) {
+            transactions = data.transactions;
+            displayTransactions(transactions, data.pagination);
+        } else {
+            // Backward compatibility with old format
+            transactions = data;
+            displayTransactions(transactions);
+        }
     } catch (error) {
         console.error('Error loading transactions:', error);
+        document.getElementById('transactions-list').innerHTML = '<p class="error">Failed to load transactions</p>';
     }
 }
 
 // Display transactions
-function displayTransactions(transactionsToShow) {
+function displayTransactions(transactionsToShow, pagination = null) {
     const transactionsList = document.getElementById('transactions-list');
     
     if (transactionsToShow.length === 0) {
@@ -333,7 +343,7 @@ function displayTransactions(transactionsToShow) {
         return;
     }
     
-    transactionsList.innerHTML = transactionsToShow.map(transaction => `
+    let html = transactionsToShow.map(transaction => `
         <div class="transaction-item ${transaction.type}">
             <div class="transaction-info">
                 <strong>${transaction.product_name}</strong>
@@ -346,6 +356,23 @@ function displayTransactions(transactionsToShow) {
             </div>
         </div>
     `).join('');
+    
+    // Add pagination controls if pagination data is available
+    if (pagination) {
+        html += `
+            <div class="pagination-controls">
+                <div class="pagination-info">
+                    Page ${pagination.page} of ${pagination.totalPages} (${pagination.total} total transactions)
+                </div>
+                <div class="pagination-buttons">
+                    ${pagination.hasPrev ? `<button onclick="loadTransactions(${pagination.page - 1})" class="btn-pagination">Previous</button>` : ''}
+                    ${pagination.hasNext ? `<button onclick="loadTransactions(${pagination.page + 1})" class="btn-pagination">Next</button>` : ''}
+                </div>
+            </div>
+        `;
+    }
+    
+    transactionsList.innerHTML = html;
 }
 
 // Load low stock items

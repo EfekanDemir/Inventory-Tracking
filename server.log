@@ -1,0 +1,4 @@
+Inventory tracking server running on port 3000
+Connected to SQLite database
+Products table ready
+Transactions table ready

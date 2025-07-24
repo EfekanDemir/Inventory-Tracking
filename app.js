@@ -12,8 +12,23 @@ app.use(cors());
 app.use(bodyParser.json());
 app.use(express.static('public'));
 
-// Database setup
-const db = new sqlite3.Database('./inventory.db');
+// Database setup with error handling
+const db = new sqlite3.Database('./inventory.db', (err) => {
+    if (err) {
+        console.error('Error opening database:', err.message);
+        process.exit(1);
+    }
+    console.log('Connected to SQLite database');
+});
+
+// Enable foreign key constraints
+db.run('PRAGMA foreign_keys = ON');
+
+// Enable WAL mode for better concurrent access
+db.run('PRAGMA journal_mode = WAL');
+
+// Set busy timeout for concurrent access
+db.run('PRAGMA busy_timeout = 3000');
 
 // Initialize database tables
 db.serialize(() => {
@@ -25,18 +40,67 @@ db.serialize(() => {
         price REAL NOT NULL DEFAULT 0.0,
         category TEXT,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-    )`);
+    )`, (err) => {
+        if (err) {
+            console.error('Error creating products table:', err.message);
+        } else {
+            console.log('Products table ready');
+        }
+    });
     
     db.run(`CREATE TABLE IF NOT EXISTS transactions (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         product_id INTEGER,
-        type TEXT NOT NULL, -- 'in' or 'out'
-        quantity INTEGER NOT NULL,
+        type TEXT NOT NULL CHECK (type IN ('in', 'out')),
+        quantity INTEGER NOT NULL CHECK (quantity > 0),
         reason TEXT,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY (product_id) REFERENCES products (id)
-    )`);
+        FOREIGN KEY (product_id) REFERENCES products (id) ON DELETE CASCADE
+    )`, (err) => {
+        if (err) {
+            console.error('Error creating transactions table:', err.message);
+        } else {
+            console.log('Transactions table ready');
+        }
+    });
 });
+
+// Helper function for database transactions
+function runTransaction(operations, callback) {
+    db.serialize(() => {
+        db.run('BEGIN TRANSACTION', function(beginErr) {
+            if (beginErr) {
+                return callback(beginErr);
+            }
+            
+            let completed = 0;
+            let hasError = false;
+            
+            const checkComplete = (err) => {
+                if (hasError) return;
+                
+                if (err) {
+                    hasError = true;
+                    db.run('ROLLBACK', () => {
+                        callback(err);
+                    });
+                    return;
+                }
+                
+                completed++;
+                if (completed === operations.length) {
+                    db.run('COMMIT', (commitErr) => {
+                        callback(commitErr);
+                    });
+                }
+            };
+            
+            operations.forEach((operation, index) => {
+                operation((err) => checkComplete(err));
+            });
+        });
+    });
+}
 
 // Routes
 
@@ -173,7 +237,7 @@ app.put('/api/products/:id', (req, res) => {
     });
 });
 
-// Delete product - Fixed: Added ID validation and cascade delete
+// Delete product - Fixed: Proper transaction handling without nesting
 app.delete('/api/products/:id', (req, res) => {
     const id = parseInt(req.params.id);
     
@@ -182,33 +246,48 @@ app.delete('/api/products/:id', (req, res) => {
         return res.status(400).json({ error: 'Invalid product ID' });
     }
     
-    // Use database transaction to ensure data consistency
-    db.serialize(() => {
-        db.run('BEGIN TRANSACTION');
+    // Check if product exists first
+    db.get('SELECT id FROM products WHERE id = ?', [id], function(err, row) {
+        if (err) {
+            return res.status(500).json({ error: 'Database error: ' + err.message });
+        }
         
-        // First delete related transactions
-        db.run('DELETE FROM transactions WHERE product_id = ?', [id], function(err) {
-            if (err) {
-                db.run('ROLLBACK');
-                res.status(500).json({ error: 'Failed to delete related transactions: ' + err.message });
-                return;
-            }
-            
-            // Then delete the product
-            db.run('DELETE FROM products WHERE id = ?', [id], function(err) {
-                if (err) {
-                    db.run('ROLLBACK');
-                    res.status(500).json({ error: 'Failed to delete product: ' + err.message });
-                    return;
+        if (!row) {
+            return res.status(404).json({ error: 'Product not found' });
+        }
+        
+        // Use database transaction to ensure data consistency
+        db.serialize(() => {
+            db.run('BEGIN TRANSACTION', function(beginErr) {
+                if (beginErr) {
+                    return res.status(500).json({ error: 'Failed to start transaction: ' + beginErr.message });
                 }
                 
-                if (this.changes === 0) {
-                    db.run('ROLLBACK');
-                    res.status(404).json({ error: 'Product not found' });
-                } else {
-                    db.run('COMMIT');
-                    res.json({ message: 'Product and related transactions deleted successfully' });
-                }
+                // First delete related transactions
+                db.run('DELETE FROM transactions WHERE product_id = ?', [id], function(deleteTransErr) {
+                    if (deleteTransErr) {
+                        db.run('ROLLBACK');
+                        return res.status(500).json({ error: 'Failed to delete related transactions: ' + deleteTransErr.message });
+                    }
+                    
+                    // Then delete the product
+                    db.run('DELETE FROM products WHERE id = ?', [id], function(deleteProductErr) {
+                        if (deleteProductErr) {
+                            db.run('ROLLBACK');
+                            return res.status(500).json({ error: 'Failed to delete product: ' + deleteProductErr.message });
+                        }
+                        
+                        // Commit the transaction
+                        db.run('COMMIT', function(commitErr) {
+                            if (commitErr) {
+                                db.run('ROLLBACK');
+                                return res.status(500).json({ error: 'Failed to commit transaction: ' + commitErr.message });
+                            }
+                            
+                            res.json({ message: 'Product and related transactions deleted successfully' });
+                        });
+                    });
+                });
             });
         });
     });
@@ -236,66 +315,72 @@ app.post('/api/transactions', (req, res) => {
     
     // Use database transaction to ensure data consistency
     db.serialize(() => {
-        db.run('BEGIN TRANSACTION');
-        
-        // First check if product exists and get current quantity
-        db.get('SELECT quantity FROM products WHERE id = ?', [parsedProductId], function(err, row) {
-            if (err) {
-                db.run('ROLLBACK');
-                res.status(500).json({ error: 'Database error: ' + err.message });
-                return;
+        db.run('BEGIN TRANSACTION', function(beginErr) {
+            if (beginErr) {
+                return res.status(500).json({ error: 'Failed to start transaction: ' + beginErr.message });
             }
             
-            if (!row) {
-                db.run('ROLLBACK');
-                res.status(404).json({ error: 'Product not found' });
-                return;
-            }
-            
-            const currentQuantity = row.quantity;
-            const multiplier = type === 'in' ? 1 : -1;
-            const newQuantity = currentQuantity + (parsedQuantity * multiplier);
-            
-            // Prevent negative stock for 'out' transactions
-            if (type === 'out' && newQuantity < 0) {
-                db.run('ROLLBACK');
-                res.status(400).json({ 
-                    error: `Insufficient stock. Current quantity: ${currentQuantity}, requested: ${parsedQuantity}` 
-                });
-                return;
-            }
-            
-            // Insert transaction record
-            const transactionQuery = `INSERT INTO transactions (product_id, type, quantity, reason) 
-                                     VALUES (?, ?, ?, ?)`;
-            
-            db.run(transactionQuery, [parsedProductId, type, parsedQuantity, reason || ''], function(err) {
+            // First check if product exists and get current quantity
+            db.get('SELECT quantity FROM products WHERE id = ?', [parsedProductId], function(err, row) {
                 if (err) {
                     db.run('ROLLBACK');
-                    res.status(500).json({ error: 'Failed to record transaction: ' + err.message });
-                    return;
+                    return res.status(500).json({ error: 'Database error: ' + err.message });
                 }
                 
-                const transactionId = this.lastID;
+                if (!row) {
+                    db.run('ROLLBACK');
+                    return res.status(404).json({ error: 'Product not found' });
+                }
                 
-                // Update product quantity
-                const updateQuery = `UPDATE products SET quantity = ? WHERE id = ?`;
+                const currentQuantity = row.quantity;
+                const multiplier = type === 'in' ? 1 : -1;
+                const newQuantity = currentQuantity + (parsedQuantity * multiplier);
                 
-                db.run(updateQuery, [newQuantity, parsedProductId], function(updateErr) {
-                    if (updateErr) {
+                // Prevent negative stock for 'out' transactions
+                if (type === 'out' && newQuantity < 0) {
+                    db.run('ROLLBACK');
+                    return res.status(400).json({ 
+                        error: `Insufficient stock. Current quantity: ${currentQuantity}, requested: ${parsedQuantity}` 
+                    });
+                }
+                
+                // Insert transaction record
+                const transactionQuery = `INSERT INTO transactions (product_id, type, quantity, reason) 
+                                         VALUES (?, ?, ?, ?)`;
+                
+                db.run(transactionQuery, [parsedProductId, type, parsedQuantity, reason || ''], function(insertErr) {
+                    if (insertErr) {
                         db.run('ROLLBACK');
-                        res.status(500).json({ error: 'Failed to update product quantity: ' + updateErr.message });
-                        return;
+                        return res.status(500).json({ error: 'Failed to record transaction: ' + insertErr.message });
                     }
                     
-                    db.run('COMMIT');
-                    res.status(201).json({
-                        id: transactionId,
-                        product_id: parsedProductId,
-                        type,
-                        quantity: parsedQuantity,
-                        reason: reason || '',
-                        new_product_quantity: newQuantity
+                    const transactionId = this.lastID;
+                    
+                    // Update product quantity
+                    const updateQuery = `UPDATE products SET quantity = ? WHERE id = ?`;
+                    
+                    db.run(updateQuery, [newQuantity, parsedProductId], function(updateErr) {
+                        if (updateErr) {
+                            db.run('ROLLBACK');
+                            return res.status(500).json({ error: 'Failed to update product quantity: ' + updateErr.message });
+                        }
+                        
+                        // Commit the transaction
+                        db.run('COMMIT', function(commitErr) {
+                            if (commitErr) {
+                                db.run('ROLLBACK');
+                                return res.status(500).json({ error: 'Failed to commit transaction: ' + commitErr.message });
+                            }
+                            
+                            res.status(201).json({
+                                id: transactionId,
+                                product_id: parsedProductId,
+                                type,
+                                quantity: parsedQuantity,
+                                reason: reason || '',
+                                new_product_quantity: newQuantity
+                            });
+                        });
                     });
                 });
             });
@@ -303,19 +388,52 @@ app.post('/api/transactions', (req, res) => {
     });
 });
 
-// Get transaction history - BUG: No pagination, could cause performance issues
+// Get transaction history - Fixed: Added pagination support
 app.get('/api/transactions', (req, res) => {
-    const query = `SELECT t.*, p.name as product_name 
-                   FROM transactions t 
-                   JOIN products p ON t.product_id = p.id 
-                   ORDER BY t.created_at DESC`;
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 50;
+    const offset = (page - 1) * limit;
     
-    db.all(query, [], (err, rows) => {
-        if (err) {
-            res.status(500).json({ error: err.message });
-            return;
+    // Validate pagination parameters
+    if (page < 1 || limit < 1 || limit > 100) {
+        return res.status(400).json({ error: 'Invalid pagination parameters. Page must be >= 1, limit must be 1-100' });
+    }
+    
+    // Get total count
+    const countQuery = `SELECT COUNT(*) as total FROM transactions`;
+    
+    db.get(countQuery, [], (countErr, countResult) => {
+        if (countErr) {
+            return res.status(500).json({ error: countErr.message });
         }
-        res.json(rows);
+        
+        const total = countResult.total;
+        const totalPages = Math.ceil(total / limit);
+        
+        // Get paginated results
+        const query = `SELECT t.*, p.name as product_name 
+                       FROM transactions t 
+                       JOIN products p ON t.product_id = p.id 
+                       ORDER BY t.created_at DESC
+                       LIMIT ? OFFSET ?`;
+        
+        db.all(query, [limit, offset], (err, rows) => {
+            if (err) {
+                return res.status(500).json({ error: err.message });
+            }
+            
+            res.json({
+                transactions: rows,
+                pagination: {
+                    page: page,
+                    limit: limit,
+                    total: total,
+                    totalPages: totalPages,
+                    hasNext: page < totalPages,
+                    hasPrev: page > 1
+                }
+            });
+        });
     });
 });
 
@@ -349,13 +467,46 @@ app.listen(PORT, () => {
     console.log(`Inventory tracking server running on port ${PORT}`);
 });
 
-// BUG: No graceful shutdown handling
+// Improved graceful shutdown handling
 process.on('SIGINT', () => {
+    console.log('\nReceived SIGINT. Gracefully shutting down...');
+    
+    // Close database connection
     db.close((err) => {
         if (err) {
-            console.error(err.message);
+            console.error('Error closing database:', err.message);
+            process.exit(1);
         }
         console.log('Database connection closed.');
         process.exit(0);
+    });
+});
+
+process.on('SIGTERM', () => {
+    console.log('\nReceived SIGTERM. Gracefully shutting down...');
+    
+    db.close((err) => {
+        if (err) {
+            console.error('Error closing database:', err.message);
+            process.exit(1);
+        }
+        console.log('Database connection closed.');
+        process.exit(0);
+    });
+});
+
+// Handle uncaught exceptions
+process.on('uncaughtException', (err) => {
+    console.error('Uncaught Exception:', err);
+    db.close(() => {
+        process.exit(1);
+    });
+});
+
+// Handle unhandled promise rejections
+process.on('unhandledRejection', (reason, promise) => {
+    console.error('Unhandled Rejection at:', promise, 'reason:', reason);
+    db.close(() => {
+        process.exit(1);
     });
 });
