@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Inventory Tracking System</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Inventory Tracking System</h1>
+            <nav>
+                <button onclick="showSection('products')" class="nav-btn active">Products</button>
+                <button onclick="showSection('add-product')" class="nav-btn">Add Product</button>
+                <button onclick="showSection('transactions')" class="nav-btn">Transactions</button>
+                <button onclick="showSection('low-stock')" class="nav-btn">Low Stock</button>
+            </nav>
+        </header>
+
+        <main>
+            <!-- Products Section -->
+            <section id="products" class="section active">
+                <h2>Products</h2>
+                <div class="search-container">
+                    <input type="text" id="search" placeholder="Search products..." onkeyup="filterProducts()">
+                </div>
+                <div id="products-list" class="products-grid">
+                    <!-- Products will be loaded here -->
+                </div>
+            </section>
+
+            <!-- Add Product Section -->
+            <section id="add-product" class="section">
+                <h2>Add New Product</h2>
+                <form id="product-form" onsubmit="addProduct(event)">
+                    <div class="form-group">
+                        <label for="name">Product Name:</label>
+                        <input type="text" id="name" name="name" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="description">Description:</label>
+                        <textarea id="description" name="description"></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label for="quantity">Quantity:</label>
+                        <input type="number" id="quantity" name="quantity" min="0" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="price">Price:</label>
+                        <input type="number" id="price" name="price" min="0" step="0.01" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="category">Category:</label>
+                        <input type="text" id="category" name="category">
+                    </div>
+                    <button type="submit">Add Product</button>
+                </form>
+            </section>
+
+            <!-- Transactions Section -->
+            <section id="transactions" class="section">
+                <h2>Stock Transactions</h2>
+                <div class="transaction-form">
+                    <h3>Record Transaction</h3>
+                    <form id="transaction-form" onsubmit="recordTransaction(event)">
+                        <div class="form-group">
+                            <label for="product-select">Product:</label>
+                            <select id="product-select" name="product_id" required>
+                                <option value="">Select a product...</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="transaction-type">Type:</label>
+                            <select id="transaction-type" name="type" required>
+                                <option value="">Select type...</option>
+                                <option value="in">Stock In</option>
+                                <option value="out">Stock Out</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="transaction-quantity">Quantity:</label>
+                            <input type="number" id="transaction-quantity" name="quantity" min="1" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="reason">Reason:</label>
+                            <input type="text" id="reason" name="reason">
+                        </div>
+                        <button type="submit">Record Transaction</button>
+                    </form>
+                </div>
+                
+                <div class="transaction-history">
+                    <h3>Transaction History</h3>
+                    <div id="transactions-list">
+                        <!-- Transactions will be loaded here -->
+                    </div>
+                </div>
+            </section>
+
+            <!-- Low Stock Section -->
+            <section id="low-stock" class="section">
+                <h2>Low Stock Alert</h2>
+                <div id="low-stock-list">
+                    <!-- Low stock items will be loaded here -->
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- Edit Product Modal - BUG: Missing proper modal structure -->
+    <div id="edit-modal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeEditModal()">&times;</span>
+            <h2>Edit Product</h2>
+            <form id="edit-form" onsubmit="updateProduct(event)">
+                <input type="hidden" id="edit-id">
+                <div class="form-group">
+                    <label for="edit-name">Product Name:</label>
+                    <input type="text" id="edit-name" name="name" required>
+                </div>
+                <div class="form-group">
+                    <label for="edit-description">Description:</label>
+                    <textarea id="edit-description" name="description"></textarea>
+                </div>
+                <div class="form-group">
+                    <label for="edit-quantity">Quantity:</label>
+                    <input type="number" id="edit-quantity" name="quantity" min="0" required>
+                </div>
+                <div class="form-group">
+                    <label for="edit-price">Price:</label>
+                    <input type="number" id="edit-price" name="price" min="0" step="0.01" required>
+                </div>
+                <div class="form-group">
+                    <label for="edit-category">Category:</label>
+                    <input type="text" id="edit-category" name="category">
+                </div>
+                <button type="submit">Update Product</button>
+            </form>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>

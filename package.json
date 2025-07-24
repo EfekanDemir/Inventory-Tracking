@@ -1,0 +1,24 @@
+{
+  "name": "inventory-tracking",
+  "version": "1.0.0",
+  "description": "A simple inventory tracking system",
+  "main": "app.js",
+  "scripts": {
+    "start": "node app.js",
+    "dev": "nodemon app.js",
+    "test": "jest"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "sqlite3": "^5.1.6",
+    "body-parser": "^1.20.2",
+    "cors": "^2.8.5"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.1",
+    "jest": "^29.7.0"
+  },
+  "keywords": ["inventory", "tracking", "management"],
+  "author": "EfekanDemir",
+  "license": "MIT"
+}
